@@ -1,0 +1,10 @@
+<div class="genres-list">
+  {% for g in genres_with_counts %}
+    <div class="chk">
+      <label>
+        <input type="checkbox" name="genre" value="{{ g.slug }}" {% if g.slug in selected_genres %}checked{% endif %} />
+        {{ g.name }} ({{ g.count }})
+      </label>
+    </div>
+  {% endfor %}
+</div>

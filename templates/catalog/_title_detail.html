@@ -1,0 +1,263 @@
+{% comment %} 
+Partial: Title detail card. Shown in a modal-like overlay when clicking a title.
+Expects: title
+{% endcomment %}
+
+<div class="title-detail-card">
+  <div class="detail-backdrop" onclick="closeTitleDetail()"></div>
+  <div class="detail-modal">
+    <button class="close-btn" onclick="closeTitleDetail()">✕</button>
+    
+    <div class="detail-container">
+      <div class="detail-poster">
+        {% if title.poster_url %}
+          <img src="{{ title.poster_url }}" alt="{{ title.title }}" />
+        {% else %}
+          <div style="width:100%;height:100%;background:#333"></div>
+        {% endif %}
+      </div>
+      
+      <div class="detail-info">
+        <h1>{{ title.title }}</h1>
+        
+        <div class="detail-meta">
+          <span class="badge">{{ title.get_type_display }}</span>
+          <span class="badge">{{ title.release_date|date:"Y" }}</span>
+          <span class="badge">Popularidad: {{ title.popularity }}</span>
+        </div>
+        
+        <div class="detail-platform">
+          <strong>Disponible en:</strong>
+          <img src="/static/logos/{{ title.platform.slug }}.svg" alt="{{ title.platform.name }}" style="height:24px;margin-left:8px" onerror="this.onerror=null;this.src='/static/logos/{{ title.platform.slug }}.png'"/>
+          <span>{{ title.platform.name }}</span>
+        </div>
+        
+        {% if title.genres.all %}
+          <div class="detail-genres">
+            <strong>Géneros:</strong>
+            <div class="genre-list">
+              {% for g in title.genres.all %}
+                <span class="genre-tag">{{ g.name }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+        
+        <div class="detail-description">
+          <strong>Sinopsis:</strong>
+          <p>{{ title.description }}</p>
+        </div>
+        
+        {% if title.release_date %}
+          <div class="detail-row">
+            <strong>Fecha de estreno:</strong>
+            <span>{{ title.release_date|date:"d \d\e F \d\e Y" }}</span>
+          </div>
+        {% endif %}
+        
+        {% if title.tmdb_id %}
+          <div class="detail-row">
+            <strong>TMDB ID:</strong>
+            <span>{{ title.tmdb_id }}</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .title-detail-card {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .detail-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    cursor: pointer;
+  }
+  
+  .detail-modal {
+    position: relative;
+    z-index: 1001;
+    background: #1a1a1a;
+    border-radius: 12px;
+    max-width: 900px;
+    max-height: 85vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    color: #fff;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+  }
+  
+  .close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: #ff6b6b;
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s;
+  }
+  
+  .close-btn:hover {
+    background: #ff5252;
+  }
+  
+  .detail-container {
+    display: flex;
+    gap: 30px;
+    padding: 40px;
+  }
+  
+  .detail-poster {
+    flex-shrink: 0;
+    width: 250px;
+    height: 375px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  
+  .detail-poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .detail-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .detail-info h1 {
+    font-size: 2.5rem;
+    margin: 0;
+    line-height: 1.2;
+  }
+  
+  .detail-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .badge {
+    background: #ff6b6b;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+  }
+  
+  .detail-platform {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #2a2a2a;
+    padding: 12px 16px;
+    border-radius: 8px;
+  }
+  
+  .detail-platform strong {
+    color: #ff6b6b;
+  }
+  
+  .detail-genres {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .detail-genres strong {
+    color: #ff6b6b;
+  }
+  
+  .genre-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .genre-tag {
+    background: #444;
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+  }
+  
+  .detail-description {
+    background: #2a2a2a;
+    padding: 16px;
+    border-radius: 8px;
+    border-left: 4px solid #ff6b6b;
+  }
+  
+  .detail-description strong {
+    color: #ff6b6b;
+  }
+  
+  .detail-description p {
+    margin: 8px 0 0 0;
+    line-height: 1.6;
+    color: #ddd;
+  }
+  
+  .detail-row {
+    display: flex;
+    gap: 10px;
+    font-size: 0.95rem;
+  }
+  
+  .detail-row strong {
+    color: #ff6b6b;
+    min-width: 120px;
+  }
+  
+  @media (max-width: 768px) {
+    .detail-container {
+      flex-direction: column;
+      padding: 20px;
+      gap: 20px;
+    }
+    
+    .detail-poster {
+      width: 100%;
+      height: 300px;
+    }
+    
+    .detail-info h1 {
+      font-size: 1.8rem;
+    }
+    
+    .detail-modal {
+      max-width: 95vw;
+      max-height: 90vh;
+    }
+  }
+</style>

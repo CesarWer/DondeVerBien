@@ -1,0 +1,276 @@
+{% extends 'catalog/base.html' %}
+
+{% block title %}{{ platform.name }}{% endblock %}
+
+{% block content %}
+  <div class="library-layout">
+    <aside class="sidebar">
+      <form method="get" id="filters-form">
+        <input type="hidden" name="q" id="q" value="{{ q }}" />
+
+        <div class="filter-block accordion">
+          <button type="button" class="accordion-header">Géneros <span class="accordion-indicator">▾</span></button>
+          <div class="accordion-content">
+            {% include "catalog/_genres_list.html" %}
+          </div>
+        </div>
+
+        <div class="filter-block accordion">
+          <button type="button" class="accordion-header">Tipo <span class="accordion-indicator">▾</span></button>
+          <div class="accordion-content">
+            <label><input type="checkbox" name="type" value="movie" {% if 'movie' in selected_types %}checked{% endif %}/> Película</label><br/>
+            <label><input type="checkbox" name="type" value="series" {% if 'series' in selected_types %}checked{% endif %}/> Serie</label>
+          </div>
+        </div>
+
+        <div class="filter-block">
+          <h4>Ordenar</h4>
+          <select name="sort">
+            <option value="pop_desc" {% if sort == 'pop_desc' %}selected{% endif %}>Popularidad (desc)</option>
+            <option value="pop_asc" {% if sort == 'pop_asc' %}selected{% endif %}>Popularidad (asc)</option>
+            <option value="title_asc" {% if sort == 'title_asc' %}selected{% endif %}>Título A→Z</option>
+            <option value="title_desc" {% if sort == 'title_desc' %}selected{% endif %}>Título Z→A</option>
+          </select>
+        </div>
+
+        <input type="hidden" name="page_size" id="id_page_size" value="{{ page_size }}" />
+
+        <div class="filter-actions">
+          <button type="button" class="page-size-btn{% if page_size == 25 %} active{% endif %}" data-size="25">25</button>
+          <button type="button" class="page-size-btn{% if page_size == 50 %} active{% endif %}" data-size="50">50</button>
+          <button type="button" class="page-size-btn{% if page_size == 100 %} active{% endif %}" data-size="100">100</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <button type="submit">Aplicar filtros</button>
+        </div>
+      </form>
+    </aside>
+
+    <section class="content-area">
+      <div class="library-search">
+        <input id="search-main" type="search" placeholder="Buscar título..." value="{{ q }}" />
+      </div>
+      <div class="platform-selector">
+        <form id="platforms-form">
+          {% for p in supported_platforms %}
+            <label class="platform-chip" title="{{ p.name }}">
+              <input type="checkbox" name="platforms" value="{{ p.slug }}" {% if p.slug in selected_platforms %}checked{% endif %} />
+              <img src="/static/logos/{{ p.slug }}.svg" alt="{{ p.name }}" onerror="this.onerror=null;this.src='/static/logos/{{ p.slug }}.png'" />
+              <span class="platform-name">{{ p.name }}</span>
+            </label>
+          {% endfor %}
+        </form>
+        <button id="filters-toggle" class="filters-toggle" aria-expanded="false">Filtros ▾</button>
+        <div id="mobile-filters-holder" class="mobile-filters-holder" aria-hidden="true"></div>
+        <div class="platform-order">
+          <label>Ordenar:&nbsp;</label>
+          <select id="sort-top">
+            <option value="pop_desc" {% if sort == 'pop_desc' %}selected{% endif %}>Popularidad (desc)</option>
+            <option value="pop_asc" {% if sort == 'pop_asc' %}selected{% endif %}>Popularidad (asc)</option>
+            <option value="title_asc" {% if sort == 'title_asc' %}selected{% endif %}>Título A→Z</option>
+            <option value="title_desc" {% if sort == 'title_desc' %}selected{% endif %}>Título Z→A</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="titles-fragment">
+        {% include "catalog/_titles_grid.html" %}
+      </div>
+    </section>
+      </div>
+    <script>
+      // AJAX-driven filtering and pagination
+      (function(){
+        const container = document.getElementById('titles-fragment');
+        const form = document.getElementById('filters-form');
+        if(!container || !form) return;
+
+        function buildUrl(page){
+          const params = new URLSearchParams(new FormData(form));
+          // include selected platforms from the separate platforms-form
+          const pf = document.getElementById('platforms-form');
+          if(pf){
+            const fd = new FormData(pf);
+            for(const [k,v] of fd.entries()){
+              if(k === 'platforms') params.append('platforms', v);
+            }
+          }
+          if(page) params.set('page', page);
+          return window.location.pathname + 'data?' + params.toString();
+        }
+
+        async function loadPage(page){
+          const url = buildUrl(page);
+          const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          if(!res.ok) return;
+          // expect JSON with titles_html and genres_html
+          const data = await res.json();
+          container.innerHTML = data.titles_html;
+          // replace genres fragment
+          const genresHolder = document.querySelector('.filter-block .genres-list');
+          if(genresHolder && data.genres_html){
+            genresHolder.innerHTML = data.genres_html;
+          }
+          attachPaginationLinks();
+        }
+
+        function attachPaginationLinks(){
+          container.querySelectorAll('.ajax-page').forEach(a=>{
+            a.addEventListener('click', (e)=>{
+              const p = e.currentTarget.getAttribute('data-page');
+              loadPage(p);
+            });
+          });
+        }
+
+        // submit filters via JS
+        form.addEventListener('change', ()=> loadPage(1));
+
+        // platform selection changes should also trigger reload
+        const pf = document.getElementById('platforms-form');
+        if(pf){
+          pf.addEventListener('change', ()=> loadPage(1));
+        }
+
+        // When the filters form is submitted normally, copy selected platforms into it so the GET includes them
+        form.addEventListener('submit', (ev)=>{
+          // remove previous hidden platform inputs
+          form.querySelectorAll('input[name="platforms"][data-cloned]').forEach(n=>n.remove());
+          if(pf){
+            pf.querySelectorAll('input[name="platforms"]:checked').forEach(cb=>{
+              const h = document.createElement('input');
+              h.type = 'hidden'; h.name = 'platforms'; h.value = cb.value; h.dataset.cloned = '1';
+              form.appendChild(h);
+            });
+          }
+          // allow submit to continue
+        });
+
+      document.querySelectorAll('.page-size-btn').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          // remove active class from all buttons
+          document.querySelectorAll('.page-size-btn').forEach(b=>b.classList.remove('active'));
+          // add active to clicked button
+          e.currentTarget.classList.add('active');
+          document.getElementById('id_page_size').value = e.currentTarget.dataset.size;
+          loadPage(1);
+        });
+      });        // initial attach
+        attachPaginationLinks();
+
+        // --- Mobile filters: clone sidebar filter-blocks into top area on small viewports
+        const mobileHolder = document.getElementById('mobile-filters-holder');
+        const sidebar = document.querySelector('.sidebar');
+        function removeIds(node){
+          if(node.removeAttribute) node.removeAttribute('id');
+          node.querySelectorAll && node.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
+        }
+        function syncMobileFilters(){
+          if(!mobileHolder || !sidebar) return;
+          const small = window.innerWidth <= 900;
+          mobileHolder.innerHTML = '';
+          mobileHolder.setAttribute('aria-hidden', small ? 'false' : 'true');
+          if(!small) return;
+          // clone relevant blocks (make them expanded and remove accordion behaviour)
+          sidebar.querySelectorAll('.filter-block').forEach(block=>{
+            const c = block.cloneNode(true);
+            removeIds(c);
+            c.classList.remove('accordion');
+            c.classList.add('accordion-open');
+            const hdr = c.querySelector('.accordion-header');
+            if(hdr) hdr.setAttribute('aria-expanded','true');
+            const ind = hdr ? hdr.querySelector('.accordion-indicator') : null;
+            if(ind) ind.textContent = '▴';
+            mobileHolder.appendChild(c);
+          });
+        }
+
+        // Delegate change events once on the holder (prevents duplicate listeners)
+        if(mobileHolder){
+          mobileHolder.addEventListener('change', function(e){
+            const target = e.target;
+            if(!target || !target.name) return;
+            const name = target.name;
+            // find corresponding real control(s) inside actual filters form
+            if(target.type === 'checkbox' || target.type === 'radio'){
+              const real = form.querySelectorAll('input[name="'+name+'"]');
+              real.forEach(r=>{ r.checked = (r.value === target.value) ? target.checked : r.checked; });
+            } else {
+              const real = form.querySelector('[name="'+name+'"]');
+              if(real) real.value = target.value;
+            }
+            form.dispatchEvent(new Event('change', { bubbles:true }));
+          });
+        }
+        window.addEventListener('resize', syncMobileFilters);
+        // run once on load
+        syncMobileFilters();
+      })();
+      // Accordion + sort sync for platform page
+      (function(){
+        const form = document.getElementById('filters-form');
+        const accs = Array.from(document.querySelectorAll('.accordion'));
+        accs.forEach(function(acc){
+          const hdr = acc.querySelector('.accordion-header');
+          const content = acc.querySelector('.accordion-content');
+          const indicator = hdr ? hdr.querySelector('.accordion-indicator') : null;
+          if(!hdr || !content) return;
+          const isLarge = window.innerWidth > 900;
+          if(isLarge) acc.classList.add('accordion-open');
+          const openNow = acc.classList.contains('accordion-open');
+          hdr.setAttribute('aria-expanded', openNow ? 'true' : 'false');
+          if(indicator) indicator.textContent = openNow ? '▴' : '▾';
+          hdr.addEventListener('click', (e)=>{ 
+            e.preventDefault(); 
+            const open = acc.classList.toggle('accordion-open'); 
+            hdr.setAttribute('aria-expanded', open ? 'true' : 'false'); 
+            if(indicator) indicator.textContent = open ? '▴' : '▾';
+          });
+          hdr.addEventListener('keydown', (e)=>{
+            if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); hdr.click(); }
+          });
+        });
+
+        const topSort = document.getElementById('sort-top');
+        const sideSort = document.querySelector('select[name="sort"]');
+        if(topSort && sideSort){
+          topSort.addEventListener('change', ()=>{ sideSort.value = topSort.value; if(form) form.dispatchEvent(new Event('change', { bubbles:true })); });
+          sideSort.addEventListener('change', ()=>{ topSort.value = sideSort.value; if(form) form.dispatchEvent(new Event('change', { bubbles:true })); });
+        }
+
+        window.addEventListener('resize', ()=>{
+          const large = window.innerWidth > 900;
+          accs.forEach(a=>{
+            if(large) a.classList.add('accordion-open'); else a.classList.remove('accordion-open');
+            const hdr = a.querySelector('.accordion-header');
+            const indicator = hdr ? hdr.querySelector('.accordion-indicator') : null;
+            if(hdr) hdr.setAttribute('aria-expanded', a.classList.contains('accordion-open') ? 'true' : 'false');
+            if(indicator) indicator.textContent = a.classList.contains('accordion-open') ? '▴' : '▾';
+          });
+        });
+      })();
+      (function(){
+        const t = document.getElementById('filters-toggle');
+        const sb = document.querySelector('.sidebar');
+        if(!t || !sb) return;
+        t.addEventListener('click', ()=>{
+          const isOpen = sb.classList.toggle('open');
+          t.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          t.textContent = isOpen ? 'Filtros ▴' : 'Filtros ▾';
+        });
+      })();
+      (function(){
+        // Sync main search box with filters form hidden input
+        const searchMain = document.getElementById('search-main');
+        const filtersForm = document.getElementById('filters-form');
+        if(searchMain && filtersForm){
+          const hiddenQ = filtersForm.querySelector('input[name="q"]');
+          searchMain.addEventListener('input', ()=>{
+            if(hiddenQ) hiddenQ.value = searchMain.value;
+            filtersForm.dispatchEvent(new Event('input', { bubbles: true }));
+          });
+        }
+      })();
+    </script>
+{% endblock %}

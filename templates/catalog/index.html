@@ -1,0 +1,24 @@
+{% extends 'catalog/base.html' %}
+
+{% block title %}Plataformas{% endblock %}
+
+{% block content %}
+  <section class="platform-list">
+    <a class="platform-card" href="{% url 'catalog:biblioteca' %}">
+      <div class="placeholder" style="font-size:1.2rem;font-weight:bold">📚</div>
+      <div class="platform-name">Todas las plataformas</div>
+    </a>
+    {% for p in platforms %}
+      <a class="platform-card" href="{% url 'catalog:biblioteca' %}?platforms={{ p.slug }}">
+        {% if p.logo_url %}
+          <img src="{{ p.logo_url }}" alt="{{ p.name }}" />
+        {% else %}
+          <div class="placeholder">{{ p.name }}</div>
+        {% endif %}
+        <div class="platform-name">{{ p.name }}</div>
+      </a>
+    {% empty %}
+      <p>No hay plataformas cargadas.</p>
+    {% endfor %}
+  </section>
+{% endblock %}

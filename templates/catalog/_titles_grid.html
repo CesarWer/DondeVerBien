@@ -1,0 +1,56 @@
+{% comment %} Partial: rendered for AJAX updates. Expects page_obj, paginator, platform_logo, platform {% endcomment %}
+<header class="library-header">
+  {% if is_all_platforms %}
+    <h2>Todas las series y películas que tenemos</h2>
+  {% else %}
+    <h2>{{ selected_platform_names|join:", " }}</h2>
+  {% endif %}
+  <p>Mostrando {{ paginator.count }} resultados • Página {{ page_obj.number }} de {{ paginator.num_pages }}</p>
+</header>
+
+<div class="titles-grid">
+  {% if page_obj.object_list %}
+    {% for t in page_obj.object_list %}
+      <article class="title-card" data-id="{{ t.id }}" onclick="showTitleDetail(this.dataset.id)">
+        <div class="poster-wrapper">
+          {% if t.poster_url %}
+            <img src="{{ t.poster_url }}" alt="{{ t.title }}" />
+          {% else %}
+            <div style="width:100%;height:100%;background:#333"></div>
+          {% endif %}
+        </div>
+        <div class="meta">
+          <h3>{{ t.title }}</h3>
+          <p>{{ t.get_type_display }} • Popularidad: {{ t.popularity }}</p>
+          <p class="genres">{% for g in t.genres.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+          {% comment %} per-title platform logo using the title's platform slug (expects static/logo/<slug>.svg or png) {% endcomment %}
+          <div class="logo-small">
+            <img src="/static/logos/{{ t.platform.slug }}.svg" alt="{{ t.platform.name }}" style="height:18px;margin-top:6px" onerror="this.onerror=null;this.src='/static/logos/{{ t.platform.slug }}.png'"/>
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+  {% else %}
+    <p>No hay títulos que coincidan con los filtros.</p>
+  {% endif %}
+</div>
+
+<nav class="paginator">
+  {% if page_obj.has_previous %}
+    <a class="ajax-page" data-page="{{ page_obj.previous_page_number }}">&laquo; Anterior</a>
+  {% endif %}
+
+  {% for i in page_obj.paginator.page_range %}
+    {% if i >= page_obj.number|add:'-3' and i <= page_obj.number|add:'3' %}
+      {% if page_obj.number == i %}
+        <span class="current">{{ i }}</span>
+      {% else %}
+        <a class="ajax-page" data-page="{{ i }}">{{ i }}</a>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% if page_obj.has_next %}
+    <a class="ajax-page" data-page="{{ page_obj.next_page_number }}">Siguiente &raquo;</a>
+  {% endif %}
+</nav>
